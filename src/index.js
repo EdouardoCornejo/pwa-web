@@ -1,13 +1,14 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { CalendarApp } from './CalendarApp';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration'
-
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import './styles.css';
 
-ReactDOM.render(
-    <CalendarApp />,
-  document.getElementById('root')
+const container = document.getElementById('root');
+
+const root = createRoot(container);
+root.render(
+  <CalendarApp />,
 );
 
 serviceWorkerRegistration.register();
