@@ -10,11 +10,17 @@ const { registerRoute } = workbox.routing;
 const { CacheFirst, NetworkFirst, NetworkOnly } = workbox.strategies;
 const { BackgroundSyncPlugin } = workbox.backgroundSync;
 
-const baseUrl = 'http://localhost:4000/api/';
+// La URL de la API llega desde index.html (REACT_APP_API_URL) como parámetro del registro
+const apiUrl = new URL(
+  new URL(self.location).searchParams.get('apiUrl'),
+  self.location.origin
+).href.replace(/\/$/, '');
+const apiPath = new URL(apiUrl).pathname;
+const isEventsRequest = ({ url }) => url.href.startsWith(`${apiUrl}/events`);
 
 const cacheNetworkFirst = [
-  '/api/auth/renew',
-  '/api/events',
+  `${apiPath}/auth/renew`,
+  `${apiPath}/events`,
 ]
 
 const cacheFirstNetwork = [
@@ -41,7 +47,7 @@ const bgSyncPlugin = new BackgroundSyncPlugin('posteos-offline', {
 
 
 registerRoute(
-  new RegExp(`${baseUrl}events`),
+  isEventsRequest,
   new NetworkOnly(
     {
       plugins: [bgSyncPlugin],
@@ -51,7 +57,7 @@ registerRoute(
 )
 
 registerRoute(
-  new RegExp(`${baseUrl}events`),
+  isEventsRequest,
   new NetworkOnly(
     {
       plugins: [bgSyncPlugin],
@@ -62,7 +68,7 @@ registerRoute(
 
 
 registerRoute(
-  new RegExp(`${baseUrl}events`),
+  isEventsRequest,
   new NetworkOnly(
     {
       plugins: [bgSyncPlugin],

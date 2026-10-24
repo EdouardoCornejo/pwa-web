@@ -47,7 +47,9 @@
      const isProduction = ('%NODE_ENV%' === 'production')
 
      if(isProduction && 'serviceWorker' in navigator){
-      navigator.serviceWorker.register('sw.js')
+      navigator.serviceWorker.register(
+        'sw.js?apiUrl=' + encodeURIComponent('%REACT_APP_API_URL%')
+      )
      }
     </script>
   </body>

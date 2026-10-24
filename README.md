@@ -59,7 +59,7 @@ Versión **Progressive Web App** de una aplicación de calendario hecha con **Re
 
 - **Node.js** y **Yarn** (el repo incluye `yarn.lock`).
 - Un **backend** compatible corriendo (ver [Endpoints que consume](#endpoints-que-consume)). Este repositorio contiene solo el _frontend_.
-- **Workbox CLI** para generar el service worker (no está en las dependencias): `npm install --global workbox-cli`.
+- **Workbox CLI** para generar el service worker: viene como `devDependency` (`workbox-cli`), así que `yarn install` ya lo instala.
 
 ### Instalación
 
@@ -77,7 +77,7 @@ REACT_APP_API_URL=http://localhost:4000/api
 
 | Variable            | Descripción                                                     |
 | ------------------- | --------------------------------------------------------------- |
-| `REACT_APP_API_URL` | URL base de la API usada por `fetchSinToken` y `fetchConToken`. |
+| `REACT_APP_API_URL` | URL base de la API usada por `fetchSinToken`, `fetchConToken` y el service worker. |
 
 ### Scripts
 
@@ -121,8 +121,6 @@ Después sirve la carpeta `build/` con cualquier servidor estático (por ejemplo
 
 Despacha `startChecking()` al montarse y muestra "Espere..." mientras `checking` es `true`. Después usa `BrowserRouter` y `Routes`: `/login` redirige a `/` si hay `uid`, y `/` redirige a `/login` si no lo hay; cualquier otra ruta va a `/`.
 
-> `PrivateRoute.js` y `PublicRoute.js` usan la API antigua de React Router (`Redirect`, `component`) y no se importan en ninguna parte.
-
 ### 2. Peticiones (`src/helpers/fetch.js`)
 
 - **`fetchSinToken`** — `fetch` a `${REACT_APP_API_URL}/${endpoint}` con cuerpo JSON (login y registro).
@@ -154,14 +152,14 @@ Los tipos de acción están centralizados en `src/types/types.js`.
 
 ### 6. Service worker (`src/sw-template.js`)
 
-`workbox-config.js` toma los archivos de `build/` (`json`, `ico`, `html`, `png`, `txt`, `css`, `js`) e inyecta su lista en `self.__WB_MANIFEST`. La plantilla carga Workbox 6.4.1 desde su CDN y registra:
+`workbox-config.js` toma los archivos de `build/` (`json`, `ico`, `html`, `png`, `txt`, `css`, `js`) e inyecta su lista en `self.__WB_MANIFEST`. La plantilla carga Workbox 6.4.1 desde su CDN, lee la URL de la API del parámetro `apiUrl` con el que se registra y define:
 
 - `precacheAndRoute` — precaché del build.
-- `NetworkFirst` — `/api/auth/renew` y `/api/events`.
+- `NetworkFirst` — `<ruta de la API>/auth/renew` y `<ruta de la API>/events` (`/api/...` con la URL por defecto).
 - `CacheFirst` — CSS de Bootstrap 4.5 y Font Awesome 5.12.
-- `NetworkOnly` + `BackgroundSyncPlugin('posteos-offline')` — `POST`, `PUT` y `DELETE` a `http://localhost:4000/api/events`.
+- `NetworkOnly` + `BackgroundSyncPlugin('posteos-offline')` — `POST`, `PUT` y `DELETE` a `${REACT_APP_API_URL}/events`.
 
-`public/index.html` registra `sw.js` solo si `%NODE_ENV%` es `production`.
+`public/index.html` registra `sw.js?apiUrl=%REACT_APP_API_URL%` solo si `%NODE_ENV%` es `production`; CRA sustituye la variable al hacer el build, de modo que la app y el service worker usan la misma URL.
 
 ### Endpoints que consume
 
@@ -230,7 +228,7 @@ pwa-web/
 │   ├── helpers/            # fetch.js, prepareEvents.js, calendar-messages-es.js
 │   ├── hooks/useForm.js
 │   ├── reducers/           # authReducer, calendarReducer, uiReducer, rootReducer
-│   ├── router/             # AppRouter.js (+ PrivateRoute/PublicRoute sin uso)
+│   ├── router/             # AppRouter.js
 │   ├── store/store.js
 │   ├── types/types.js
 │   ├── CalendarApp.js
@@ -248,16 +246,13 @@ pwa-web/
 
 | Qué                               | Dónde                                    | Por defecto                     |
 | --------------------------------- | ---------------------------------------- | ------------------------------- |
-| URL de la API                     | `REACT_APP_API_URL` en `.env`            | `http://localhost:4000/api`     |
-| URL de la API en el service worker | `baseUrl` en `src/sw-template.js`       | `http://localhost:4000/api/`    |
-| Rutas `NetworkFirst`              | `cacheNetworkFirst` en `sw-template.js`  | `/api/auth/renew`, `/api/events` |
+| URL de la API (app y service worker) | `REACT_APP_API_URL` en `.env`         | `http://localhost:4000/api`     |
+| Rutas `NetworkFirst`              | `cacheNetworkFirst` en `sw-template.js`  | `auth/renew`, `events` bajo la ruta de la API |
 | Recursos `CacheFirst`             | `cacheFirstNetwork` en `sw-template.js`  | Bootstrap 4.5, Font Awesome 5.12 |
 | Retención de la cola offline      | `maxRetentionTime` (minutos)             | `24 * 60` (24 h)                |
 | Archivos precacheados             | `globPatterns` en `workbox-config.js`    | `json, ico, html, png, txt, css, js` |
 | Nombre y colores de la PWA        | `public/manifest.json`                   | Valores por defecto de CRA      |
 | Vista inicial del calendario      | `lastView` en `CalendarScreen.js`        | `month`                         |
-
-> `baseUrl` del service worker está fijo en el código: si la API se despliega en otra URL, hay que cambiarlo también ahí, además de `REACT_APP_API_URL`.
 
 ---
 
