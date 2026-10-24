@@ -152,7 +152,7 @@ Los tipos de acción están centralizados en `src/types/types.js`.
 
 ### 6. Service worker (`src/sw-template.js`)
 
-`workbox-config.js` toma los archivos de `build/` (`json`, `ico`, `html`, `png`, `txt`, `css`, `js`) e inyecta su lista en `self.__WB_MANIFEST`. La plantilla carga Workbox 6.4.1 desde su CDN, lee la URL de la API del parámetro `apiUrl` con el que se registra y define:
+`workbox-config.js` toma los archivos de `build/` (`json`, `ico`, `svg`, `html`, `png`, `txt`, `css`, `js`) e inyecta su lista en `self.__WB_MANIFEST`. La plantilla carga Workbox 6.4.1 desde su CDN, lee la URL de la API del parámetro `apiUrl` con el que se registra y define:
 
 - `precacheAndRoute` — precaché del build.
 - `NetworkFirst` — `<ruta de la API>/auth/renew` y `<ruta de la API>/events` (`/api/...` con la URL por defecto).
@@ -217,7 +217,8 @@ pwa-web/
 ├── public/
 │   ├── index.html          # CDN de estilos + registro del service worker
 │   ├── manifest.json       # Manifiesto de la PWA
-│   ├── favicon.ico, logo192.png, logo512.png
+│   ├── favicon.svg, favicon.ico, apple-touch-icon.png
+│   ├── logo192.png, logo512.png  # Iconos de la PWA
 │   └── robots.txt
 ├── src/
 │   ├── actions/            # auth.js, events.js, ui.js
@@ -250,8 +251,8 @@ pwa-web/
 | Rutas `NetworkFirst`              | `cacheNetworkFirst` en `sw-template.js`  | `auth/renew`, `events` bajo la ruta de la API |
 | Recursos `CacheFirst`             | `cacheFirstNetwork` en `sw-template.js`  | Bootstrap 4.5, Font Awesome 5.12 |
 | Retención de la cola offline      | `maxRetentionTime` (minutos)             | `24 * 60` (24 h)                |
-| Archivos precacheados             | `globPatterns` en `workbox-config.js`    | `json, ico, html, png, txt, css, js` |
-| Nombre y colores de la PWA        | `public/manifest.json`                   | Valores por defecto de CRA      |
+| Archivos precacheados             | `globPatterns` en `workbox-config.js`    | `json, ico, svg, html, png, txt, css, js` |
+| Nombre y colores de la PWA        | `public/manifest.json`                   | `Calendar PWA`, tema `#0f766e`  |
 | Vista inicial del calendario      | `lastView` en `CalendarScreen.js`        | `month`                         |
 
 ---
