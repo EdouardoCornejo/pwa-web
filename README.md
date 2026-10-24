@@ -1,68 +1,266 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Calendar PWA
 
-## Available Scripts
+Versión **Progressive Web App** de una aplicación de calendario hecha con **React 19 + Create React App + Redux**. Además del login, el registro y el CRUD de eventos sobre **react-big-calendar**, incorpora un **service worker de Workbox** que precachea la app, aplica estrategias de caché a la API y a los CDN, y **guarda las peticiones hechas sin conexión** (crear, editar o borrar eventos) para reenviarlas con **Background Sync** cuando vuelve la red.
 
-In the project directory, you can run:
+![Tech](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![Tech](https://img.shields.io/badge/Create_React_App-5-09D3AC?logo=createreactapp)
+![Tech](https://img.shields.io/badge/Redux-Thunk-764ABC?logo=redux)
+![Tech](https://img.shields.io/badge/React_Router-7-CA4245?logo=reactrouter)
+![Tech](https://img.shields.io/badge/Workbox-6-FF6F00?logo=googlechrome)
+![Tech](https://img.shields.io/badge/PWA-Installable-5A0FC8?logo=pwa)
+![Tech](https://img.shields.io/badge/Bootstrap-4.5-7952B3?logo=bootstrap)
 
-### `yarn start`
+---
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Tabla de contenidos
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+- [Calendar PWA](#calendar-pwa)
+  - [Tabla de contenidos](#tabla-de-contenidos)
+  - [Qué hace el proyecto](#qué-hace-el-proyecto)
+  - [Cómo ejecutar el proyecto](#cómo-ejecutar-el-proyecto)
+    - [Requisitos](#requisitos)
+    - [Instalación](#instalación)
+    - [Variables de entorno](#variables-de-entorno)
+    - [Scripts](#scripts)
+    - [Generar la PWA](#generar-la-pwa)
+  - [Uso](#uso)
+  - [Cómo funciona](#cómo-funciona)
+    - [1. Router (`src/router/AppRouter.js`)](#1-router-srcrouterapprouterjs)
+    - [2. Peticiones (`src/helpers/fetch.js`)](#2-peticiones-srchelpersfetchjs)
+    - [3. Acciones (`src/actions`)](#3-acciones-srcactions)
+    - [4. Reducers y store](#4-reducers-y-store)
+    - [5. Componentes (`src/components`)](#5-componentes-srccomponents)
+    - [6. Service worker (`src/sw-template.js`)](#6-service-worker-srcsw-templatejs)
+    - [Endpoints que consume](#endpoints-que-consume)
+    - [Flujo de la aplicación](#flujo-de-la-aplicación)
+  - [Tecnologías](#tecnologías)
+  - [Estructura del proyecto](#estructura-del-proyecto)
+  - [Personalización](#personalización)
+  - [Licencia](#licencia)
 
-### `yarn test`
+---
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Qué hace el proyecto
 
-### `yarn build`
+- **Registro e inicio de sesión** contra una API REST con token JWT (cabecera `x-token`) guardado en `localStorage`.
+- **Renovación del token** al arrancar (`auth/renew`) y rutas protegidas: `/login` para invitados y `/` para usuarios autenticados.
+- **Calendario en español** con `react-big-calendar` y `moment` (vistas mes, semana, día y agenda); recuerda la última vista en `localStorage`.
+- **Crear, editar y borrar eventos** desde un modal con `react-datetime-picker`; valida que la fecha de fin sea posterior a la de inicio y que el título tenga al menos 2 caracteres.
+- **Eventos propios resaltados** en azul; los de otros usuarios, en gris.
+- **Indicador Online / Offline** en la barra superior con `react-detect-offline`.
+- **PWA**: `manifest.json`, service worker con precaché de los archivos del build y registro automático solo en producción.
+- **Soporte offline**: `NetworkFirst` para `/api/auth/renew` y `/api/events`, `CacheFirst` para Bootstrap y Font Awesome, y cola de **Background Sync** (`posteos-offline`, retención de 24 h) para los `POST`, `PUT` y `DELETE` de eventos.
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+## Cómo ejecutar el proyecto
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Requisitos
 
-### `yarn eject`
+- **Node.js** y **Yarn** (el repo incluye `yarn.lock`).
+- Un **backend** compatible corriendo (ver [Endpoints que consume](#endpoints-que-consume)). Este repositorio contiene solo el _frontend_.
+- **Workbox CLI** para generar el service worker (no está en las dependencias): `npm install --global workbox-cli`.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### Instalación
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+yarn install
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+### Variables de entorno
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Copia `.env.template` a `.env`:
 
-## Learn More
+```bash
+REACT_APP_API_URL=http://localhost:4000/api
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+| Variable            | Descripción                                                     |
+| ------------------- | --------------------------------------------------------------- |
+| `REACT_APP_API_URL` | URL base de la API usada por `fetchSinToken` y `fetchConToken`. |
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Scripts
 
-### Code Splitting
+| Comando      | Comando real               | Qué hace                                                       |
+| ------------ | -------------------------- | -------------------------------------------------------------- |
+| `yarn start` | `react-scripts start`      | Servidor de desarrollo en `http://localhost:3000`.             |
+| `yarn build` | `react-scripts build`      | Build de producción en `build/`.                               |
+| `yarn PWA`   | `workbox injectManifest`   | Genera `build/sw.js` a partir de `src/sw-template.js`.         |
+| `yarn test`  | `react-scripts test`       | Jest en modo _watch_.                                          |
+| `yarn eject` | `react-scripts eject`      | Expulsa la configuración de CRA (irreversible).                |
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
+### Generar la PWA
 
-### Analyzing the Bundle Size
+El service worker solo existe después del build y solo se registra cuando `NODE_ENV` es `production`:
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
+```bash
+yarn build   # genera build/
+yarn PWA     # inyecta el manifiesto de precaché y escribe build/sw.js
+```
 
-### Making a Progressive Web App
+Después sirve la carpeta `build/` con cualquier servidor estático (por ejemplo `npx serve -s build`) para probar la instalación y el modo offline.
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
+---
 
-### Advanced Configuration
+## Uso
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
+| Acción                       | Cómo                                                          |
+| ---------------------------- | ------------------------------------------------------------- |
+| Registrarse / iniciar sesión | Formularios **Registro** e **Ingreso** en `/login`.           |
+| Crear un evento              | Botón flotante **+** → rellenar el modal → **Guardar**.       |
+| Editar un evento             | Seleccionarlo y hacer doble clic → modal **Editar evento**.   |
+| Borrar un evento             | Seleccionarlo y pulsar **Borrar evento**.                     |
+| Deseleccionar                | Clic en un hueco vacío del calendario.                        |
+| Cerrar sesión                | Botón **Salir** de la barra superior.                         |
 
-### Deployment
+---
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
+## Cómo funciona
 
-### `yarn build` fails to minify
+### 1. Router (`src/router/AppRouter.js`)
 
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+Despacha `startChecking()` al montarse y muestra "Espere..." mientras `checking` es `true`. Después usa `BrowserRouter` y `Routes`: `/login` redirige a `/` si hay `uid`, y `/` redirige a `/login` si no lo hay; cualquier otra ruta va a `/`.
+
+> `PrivateRoute.js` y `PublicRoute.js` usan la API antigua de React Router (`Redirect`, `component`) y no se importan en ninguna parte.
+
+### 2. Peticiones (`src/helpers/fetch.js`)
+
+- **`fetchSinToken`** — `fetch` a `${REACT_APP_API_URL}/${endpoint}` con cuerpo JSON (login y registro).
+- **`fetchConToken`** — igual, añadiendo la cabecera `x-token` con el token de `localStorage`.
+
+`prepareEvents` convierte `start` y `end` de cada evento a `Date` con `moment`.
+
+### 3. Acciones (`src/actions`)
+
+Acciones asíncronas (_thunks_):
+
+- **`auth.js`** — `startLogin`, `startRegister`, `startChecking`, `startLogout`.
+- **`events.js`** — `eventStartLoading`, `eventStartAddNew`, `eventStartUpdate`, `eventStartDelete`, además de `eventSetActive`, `eventClearActiveEvent` y `eventLogout`.
+- **`ui.js`** — `uiOpenModal`, `uiCloseModal`.
+
+Los tipos de acción están centralizados en `src/types/types.js`.
+
+### 4. Reducers y store
+
+`rootReducer` combina `uiReducer` (`modalOpen`), `calendarReducer` (`events`, `activeEvent`) y `authReducer` (`checking`, `uid`, `name`). `store.js` lo monta con `configureStore` de Redux Toolkit, con DevTools solo fuera de producción.
+
+### 5. Componentes (`src/components`)
+
+- **`auth/LoginScreen`** — formularios de ingreso y registro (con `useForm`), comprueba que las contraseñas coincidan.
+- **`calendar/CalendarScreen`** — `<Calendar>` con `momentLocalizer`, mensajes en español y `eventStyleGetter`.
+- **`calendar/CalendarModal`** — formulario de evento; decide entre crear o actualizar según haya `activeEvent`.
+- **`calendar/CalendarEvent`** — título + nombre del autor.
+- **`ui/Navbar`**, **`ui/AddNewFab`**, **`ui/DeleteEventFab`** — barra con estado de conexión y botones flotantes.
+
+### 6. Service worker (`src/sw-template.js`)
+
+`workbox-config.js` toma los archivos de `build/` (`json`, `ico`, `html`, `png`, `txt`, `css`, `js`) e inyecta su lista en `self.__WB_MANIFEST`. La plantilla carga Workbox 6.4.1 desde su CDN y registra:
+
+- `precacheAndRoute` — precaché del build.
+- `NetworkFirst` — `/api/auth/renew` y `/api/events`.
+- `CacheFirst` — CSS de Bootstrap 4.5 y Font Awesome 5.12.
+- `NetworkOnly` + `BackgroundSyncPlugin('posteos-offline')` — `POST`, `PUT` y `DELETE` a `http://localhost:4000/api/events`.
+
+`public/index.html` registra `sw.js` solo si `%NODE_ENV%` es `production`.
+
+### Endpoints que consume
+
+| Método   | Ruta              | Uso                              |
+| -------- | ----------------- | -------------------------------- |
+| `POST`   | `/auth`           | Login (`email`, `password`).     |
+| `POST`   | `/auth/new`       | Registro (`email`, `password`, `name`). |
+| `GET`    | `/auth/renew`     | Renovar el token.                |
+| `GET`    | `/events`         | Listar eventos (`eventos`).      |
+| `POST`   | `/events`         | Crear evento.                    |
+| `PUT`    | `/events/:id`     | Actualizar evento.               |
+| `DELETE` | `/events/:id`     | Borrar evento.                   |
+
+Las respuestas deben incluir `ok` (y `msg` en caso de error), tal como las leen las acciones.
+
+### Flujo de la aplicación
+
+```
+index.js → CalendarApp (Provider store)
+  └─ AppRouter
+       ├─ startChecking() → GET auth/renew
+       ├─ sin uid → LoginScreen → startLogin / startRegister
+       └─ con uid → CalendarScreen
+              ├─ eventStartLoading() → GET events → prepareEvents()
+              ├─ AddNewFab → uiOpenModal → CalendarModal
+              │                 ├─ nuevo   → eventStartAddNew  (POST)
+              │                 └─ activo  → eventStartUpdate  (PUT)
+              └─ DeleteEventFab → eventStartDelete (DELETE)
+
+Service worker (producción)
+  ├─ precaché del build
+  ├─ GET api/events, api/auth/renew → NetworkFirst
+  └─ POST/PUT/DELETE events sin red → cola "posteos-offline" → reintento al reconectar
+```
+
+---
+
+## Tecnologías
+
+- **React 19** con **Create React App** (`react-scripts` 5).
+- **Redux** + **Redux Toolkit** (`configureStore`) + _thunks_.
+- **React Router 7**.
+- **react-big-calendar**, **react-datetime-picker**, **react-modal**, **moment**.
+- **react-detect-offline** — estado de la conexión.
+- **SweetAlert2** — alertas.
+- **Workbox 6** — precaché, estrategias de caché y Background Sync.
+- **Bootstrap 4.5** y **Font Awesome 5.12** vía CDN.
+
+---
+
+## Estructura del proyecto
+
+```
+pwa-web/
+├── public/
+│   ├── index.html          # CDN de estilos + registro del service worker
+│   ├── manifest.json       # Manifiesto de la PWA
+│   ├── favicon.ico, logo192.png, logo512.png
+│   └── robots.txt
+├── src/
+│   ├── actions/            # auth.js, events.js, ui.js
+│   ├── components/
+│   │   ├── auth/           # LoginScreen.js + login.css
+│   │   ├── calendar/       # CalendarScreen, CalendarModal, CalendarEvent
+│   │   └── ui/             # Navbar, AddNewFab, DeleteEventFab
+│   ├── helpers/            # fetch.js, prepareEvents.js, calendar-messages-es.js
+│   ├── hooks/useForm.js
+│   ├── reducers/           # authReducer, calendarReducer, uiReducer, rootReducer
+│   ├── router/             # AppRouter.js (+ PrivateRoute/PublicRoute sin uso)
+│   ├── store/store.js
+│   ├── types/types.js
+│   ├── CalendarApp.js
+│   ├── index.js
+│   ├── styles.css
+│   └── sw-template.js      # Plantilla del service worker
+├── .env.template
+├── workbox-config.js
+└── package.json
+```
+
+---
+
+## Personalización
+
+| Qué                               | Dónde                                    | Por defecto                     |
+| --------------------------------- | ---------------------------------------- | ------------------------------- |
+| URL de la API                     | `REACT_APP_API_URL` en `.env`            | `http://localhost:4000/api`     |
+| URL de la API en el service worker | `baseUrl` en `src/sw-template.js`       | `http://localhost:4000/api/`    |
+| Rutas `NetworkFirst`              | `cacheNetworkFirst` en `sw-template.js`  | `/api/auth/renew`, `/api/events` |
+| Recursos `CacheFirst`             | `cacheFirstNetwork` en `sw-template.js`  | Bootstrap 4.5, Font Awesome 5.12 |
+| Retención de la cola offline      | `maxRetentionTime` (minutos)             | `24 * 60` (24 h)                |
+| Archivos precacheados             | `globPatterns` en `workbox-config.js`    | `json, ico, html, png, txt, css, js` |
+| Nombre y colores de la PWA        | `public/manifest.json`                   | Valores por defecto de CRA      |
+| Vista inicial del calendario      | `lastView` en `CalendarScreen.js`        | `month`                         |
+
+> `baseUrl` del service worker está fijo en el código: si la API se despliega en otra URL, hay que cambiarlo también ahí, además de `REACT_APP_API_URL`.
+
+---
+
+## Licencia
+
+Proyecto de uso libre con fines educativos y de práctica.
